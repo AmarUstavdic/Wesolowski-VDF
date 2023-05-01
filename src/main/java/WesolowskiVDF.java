@@ -8,11 +8,6 @@ public class WesolowskiVDF {
 
     private BigInteger N;
 
-    /**
-     *  Research paper that was used for this implementation
-     *  https://www.researchgate.net/publication/349760306_Implementation_Study_of_Two_Verifiable_Delay_Functions
-     *
-     * /
 
     // VDF(setup, eval, verify)
     /*
