@@ -5,16 +5,20 @@ import java.security.SecureRandom;
 import java.util.Objects;
 
 public class WesolowskiVDF {
-
+    private String hashAlgorithm;
     private BigInteger N;
 
 
     // VDF(setup, eval, verify)
     /*
-     *  lambda - RSA security usually 2048 for high security
-     *  k      - security parameter (typically between 128 and 256 bits is used) as an input
+     *         lambda   - RSA security usually 2048 for high security
+     *  hashAlgorithm   - hash function security parameter
      */
-    public void setup(int lambda, int k) {
+    public void setup(int lambda, String hashAlgorithm) {
+        switch (hashAlgorithm) {
+            case "SHA-256", "SHA-512", "SHA3-256", "SHA3-512" -> this.hashAlgorithm = hashAlgorithm;
+            default -> throw new RuntimeException(hashAlgorithm + "not supported");
+        }
         SecureRandom rand = new SecureRandom();
         BigInteger p = BigInteger.probablePrime(lambda / 2, rand);
         BigInteger q = BigInteger.probablePrime(lambda / 2, rand);
@@ -25,7 +29,7 @@ public class WesolowskiVDF {
         BigInteger x = new BigInteger(hash(m));
         BigInteger y = x;
         for (int i = 0; i < T; i++) {
-            y = y.pow(2).mod(N);
+            y = y.modPow(BigInteger.TWO, N);
         }
         BigInteger l = hashPrime((x.add(y)).toByteArray());
         BigInteger proof = x.modPow(BigInteger.TWO.pow(T).divide(l), N);
@@ -34,33 +38,28 @@ public class WesolowskiVDF {
 
     public boolean verify(byte[] m, int T, BigInteger l, BigInteger proof) {
         BigInteger x = new BigInteger(hash(m));
-        BigInteger r = BigInteger.TWO.pow(T).mod(l);
+        BigInteger r = BigInteger.TWO.modPow(BigInteger.valueOf(T),l);
         BigInteger y = modExp(proof,x,l,r,N);
         BigInteger xPlusY = x.add(y);
-
-        System.out.println("Verify: " + hashPrime(xPlusY.toByteArray()));
         return Objects.equals(l, hashPrime(xPlusY.toByteArray()));
     }
 
 
 
     // HELPER FUNCTIONS BELLOW
-    // note that this H output needs to be 2*k length
-    // for example now if k = 256 we use SHA-512
     private byte[] hash(byte[] input) {
         try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            MessageDigest md = MessageDigest.getInstance(hashAlgorithm);
             return md.digest(input);
         } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("SHA-256 not supported", e);
+            throw new RuntimeException(e);
         }
     }
 
     private BigInteger hashPrime(byte[] m) {
         byte[] hash = hash(m);
         BigInteger hashVal = new BigInteger(1, hash);
-        BigInteger prime = hashVal.abs().nextProbablePrime();
-        return prime;
+        return hashVal.abs().nextProbablePrime();
     }
 
     private BigInteger modExp(BigInteger x, BigInteger y, BigInteger a, BigInteger b, BigInteger N) {
